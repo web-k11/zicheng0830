@@ -795,7 +795,7 @@ async function fetchSheetData(isSilent = false) {
 
     // 2. 處理內容資料 (自動覆蓋舊資料)
     if (data.sheet1Data) {
-      processSheetData(data.sheet1Data);
+      processData(data.sheet1Data);
     }
     
     hideLoading();
