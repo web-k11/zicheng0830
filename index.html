@@ -753,24 +753,27 @@ function toggleSearchClearButton() {
 // --- 智慧更新設定 ---
 let lastUpdateTimestamp = 0; // 記錄上次成功的更新時間
 const UPDATE_COOLDOWN = 2 * 60 * 1000; // 2 分鐘 (毫秒)
+let isFetching = false; 
 
 // 獲取試算表數據 (新增 isSilent 參數，判斷是否為背景靜默更新)
 async function fetchSheetData(isSilent = false) {
-  // 如果不是靜默更新，才顯示讀取中動畫
+  // 【新增防護】如果已經在抓資料了，就直接擋掉，不執行後續動作
+  if (isFetching) return; 
+  isFetching = true; // 上鎖
+
   if (!isSilent) {
     showLoading();
     hideError();
   }
 
   try {
-  // 試算表ID
     const dataSourceConfig = {
       sheetId: '1sLi8878787878  _IiGLmP7k69696969gBk6lbyincsliUNYws',
       apiKey: 'AIzaSahohiwoqujfiwfZfi5-1qpfhwiopkdaDtE',
       targetRange: 'Sheet1',
       enableDataProxy: true
     };
-    
+        
     const proxyEndpoint = 'https://script.google.com/macros/s/AKfycbwXECaS2hxhuAEupx5a6K3W6bzfSSo7Bb2GLfH_UVRjCj0Sr9iXbDpd1uOVxJIdIB6N/exec';
     const targetUrl = `${proxyEndpoint}?t=${new Date().getTime()}`;
 
@@ -783,7 +786,6 @@ async function fetchSheetData(isSilent = false) {
     lastUpdateTimestamp = Date.now();
     console.log(`[DataService] ${isSilent ? '背景更新' : '初次載入'}成功: ${new Date().toLocaleTimeString()}`);
 
-    // 1. 處理標題與頁面設定
     if (data.titleData && data.titleData.length > 0) {
       const titleObject = data.titleData[0];
       if (titleObject['分頁']) document.title = titleObject['分頁'];
@@ -793,24 +795,28 @@ async function fetchSheetData(isSilent = false) {
       if (subtitleElement) subtitleElement.textContent = titleObject['副標題'] || '';
     }
 
-    // 2. 處理內容資料 (自動覆蓋舊資料)
     if (data.sheet1Data) {
       processData(data.sheet1Data);
     }
-    
+        
     hideLoading();
   } catch (err) {
     console.error('[DataService] Sync failed:', err);
-    // 只有在非靜默狀態下才顯示錯誤訊息
     if (!isSilent) {
       hideLoading();
       showError();
     }
+  } finally {
+    // 【新增防護】不管成功或失敗，最後一定要把鎖解開
+    isFetching = false; 
   }
 }
 
 // 偵測是否需要更新的邏輯
 function checkForUpdate() {
+  // 【新增防護】如果已經在抓資料了，就直接退出，連時間都不用算
+  if (isFetching) return;
+
   const now = Date.now();
   // 如果從未更新過，或距離上次更新超過 2 分鐘
   if (lastUpdateTimestamp !== 0 && (now - lastUpdateTimestamp > UPDATE_COOLDOWN)) {
